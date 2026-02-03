@@ -13,6 +13,14 @@ async function bootstrap() {
     .setTitle('Chat App API')
     .setDescription('API for the Chat App backend')
     .setVersion('1.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'bearer',
+    )
+    .addGlobalResponse({
+      status: 500,
+      description: 'Internal Server Error',
+    })
     .build();
   const documentFactory = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory, {
