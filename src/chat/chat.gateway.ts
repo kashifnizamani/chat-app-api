@@ -1,3 +1,5 @@
+import { UseGuards } from '@nestjs/common';
+import { ApiProperty } from '@nestjs/swagger';
 import {
   ConnectedSocket,
   MessageBody,
@@ -8,8 +10,11 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { AuthGuard } from 'src/auth/auth.guard';
+import { ChatService } from './chat.service';
+import { JwtService } from '@nestjs/jwt';
 
-@WebSocketGateway(8080, {
+@WebSocketGateway({
   cors: {
     origin: '*',
   },
@@ -18,12 +23,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  handleConnection(client: Socket) {
-    console.log(`New Client connected: ${client.id}`);
+  constructor(private chatService: ChatService) {}
 
-    this.server.emit('user-joined', {
-      message: 'New User joined the chat: ' + client.id,
-    });
+  @ApiProperty()
+  @UseGuards(AuthGuard)
+  async handleConnection(client: Socket) {
+    const token =
+      client.handshake.auth?.token || client.handshake.headers['authorization'];
+    const user = await this.chatService.validateToken(token);
+    if (!user) {
+      console.log('Unauthorized connection rejected.');
+      return client.disconnect(); // Hard close
+    }
+
+    client['user'] = user; // Now the socket has an identity
+    this.server.emit('presence', { user: user.username, status: 'online' });
   }
 
   handleDisconnect(client: Socket) {
@@ -42,5 +56,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     client.emit('reply', 'Hello from server');
     this.server.emit('reply', 'Hello to all clients!');
+  }
+
+  @SubscribeMessage('user')
+  handleBroadcastEvent(
+    @MessageBody() data: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    client.broadcast.emit('hello there');
+    console.log('Broadcasted by: ' + client.id);
   }
 }
