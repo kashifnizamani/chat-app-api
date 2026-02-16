@@ -9,6 +9,7 @@ import { Request } from 'express';
 import { IS_PUBLIC_KEY } from './decorators/skipAuth.decorator';
 import { Reflector } from '@nestjs/core';
 import { UsersService } from 'src/users/users.service';
+import { AuthService } from './auth.service';
 
 export interface JwtPayload {
   sub: string;
@@ -19,9 +20,8 @@ export interface JwtPayload {
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
-    private jwtService: JwtService,
     private reflector: Reflector,
-    private usersService: UsersService,
+    private authService: AuthService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -53,8 +53,11 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(token);
-      const user = await this.usersService.findOne(payload['sub']);
+    
+      const user = await this.authService.validateToken(token);
+      if (!user) {
+        throw new UnauthorizedException('Invalid token');
+      }
       request.user = user;
     } catch {
       throw new UnauthorizedException('Invalid or expired token');
