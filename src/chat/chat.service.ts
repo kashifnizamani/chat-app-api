@@ -23,6 +23,11 @@ export class ChatService {
   async getMessagesByRoom(roomId: string) {
     return this.prisma.message.findMany({
       where: { roomId },
+      include: {
+        sender: {
+          select: { id: true, username: true },
+        },
+      },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -34,13 +39,24 @@ export class ChatService {
         senderId: userId,
         roomId,
       },
+      include: {
+        sender: {
+          select: { id: true, username: true },
+        },
+      },
     });
   }
 
-  // 1. Business Logic: Ensure user is allowed to join a room
-  async canUserJoinRoom(userId: string, roomId: string): Promise<boolean> {
-    // Logic: Check if room is public or if user is a member
-    // For now, we'll assume rooms are created on the fly
+  async getAllRooms() {
+    return this.prisma.room.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+
+
+
+  async canUserJoinRoom(userId: string, roomId: string) {
     return true;
   }
 }

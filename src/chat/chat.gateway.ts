@@ -23,7 +23,7 @@ interface AuthenticatedSocket extends Socket {
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   constructor(
     private chatService: ChatService,
@@ -49,16 +49,57 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       user: user.username,
       status: 'online',
     });
+
+    const allSockets = await this.server.fetchSockets();
+    for (const s of allSockets) {
+      const existingUser = (s as unknown as AuthenticatedSocket).data?.user;
+      if (existingUser && existingUser.username !== user.username) {
+        client.emit('presence', {
+          user: existingUser.username,
+          status: 'online',
+        });
+      }
+    }
   }
 
   handleDisconnect(client: AuthenticatedSocket) {
     const user = client.data.user;
     if (user) {
+      // Get all rooms the socket is in
+      const rooms = Array.from(client.rooms).filter((r) => r !== client.id);
+      rooms.forEach((roomId) => {
+        this.server.to(roomId).emit('userLeft', {
+          roomId,
+          user: user.username,
+        });
+      });
+
       this.server.emit('presence', {
         user: user.username,
         status: 'offline',
       });
     }
+  }
+
+  @SubscribeMessage('getRooms')
+  async handleGetRooms(@ConnectedSocket() client: AuthenticatedSocket) {
+    const rooms = await this.chatService.getAllRooms(); // implement in service
+    client.emit('roomList', rooms);
+  }
+  @SubscribeMessage('getRoomUsers')
+  async handleGetRoomUsers(
+    @MessageBody() raw: any,
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const roomId = payload?.roomId;
+    if (!roomId) return client.emit('error', 'Room ID required');
+
+    const sockets = await this.server.in(roomId).fetchSockets();
+    const users = sockets.map(
+      (s) => (s as unknown as AuthenticatedSocket).data.user.username,
+    );
+    client.emit('roomUsers', { roomId, users });
   }
 
   // ---------- CREATE ROOM ----------
@@ -78,11 +119,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       payload.isGroup ?? false,
     );
 
-    // ✅ auto-join creator
     client.join(room.id);
 
     console.log(
-      `${client.data.user.username} created & joined room ${room.id}`,
+      `${client.data.user.username} created & joined room ${room.id} (${room.name})`,
     );
 
     // ✅ send room info back to creator
@@ -145,6 +185,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.error('Invalid message payload:', payload);
       return;
     }
+    const room = await this.chatService.findRoomById(roomId);
+    if (!room) {
+      return client.emit('error', 'Cannot send message to nonexistent room');
+    }
 
     const message = await this.chatService.saveMessage(
       client.data.user.id,
@@ -159,6 +203,42 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     console.log('Sockets in room', roomId, sockets);
 
+    console.log(message);
     this.server.to(roomId).emit('newMessage', message);
+  }
+
+  @SubscribeMessage('leaveRoom')
+  handleLeaveRoom(
+    @MessageBody() raw: any,
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const roomId = payload?.roomId;
+
+    if (!roomId) {
+      return client.emit('error', 'Room ID required');
+    }
+
+    client.leave(roomId);
+
+    this.server.to(roomId).emit('userLeft', {
+      roomId,
+      user: client.data.user.username,
+    });
+  }
+
+  @SubscribeMessage('typing')
+  handleTyping(
+    @MessageBody() raw: any,
+    @ConnectedSocket() client: AuthenticatedSocket,
+  ) {
+    const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const { roomId, isTyping } = payload || {};
+    if (!roomId) return client.emit('error', 'Room ID required');
+
+    this.server.to(roomId).emit('typing', {
+      user: client.data.user.username,
+      isTyping,
+    });
   }
 }
