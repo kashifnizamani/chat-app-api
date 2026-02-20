@@ -11,6 +11,12 @@ import { Server, Socket } from 'socket.io';
 import { ChatService } from './chat.service';
 import { AuthService } from '../auth/auth.service';
 import { SocketUser } from './chat.types';
+import type {
+  CreateRoomDto,
+  JoinRoomDto,
+  SendMessageDto,
+  TypingDto,
+} from './dto/socket.dto';
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -88,11 +94,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
   @SubscribeMessage('getRoomUsers')
   async handleGetRoomUsers(
-    @MessageBody() raw: any,
+    @MessageBody() payload: JoinRoomDto,
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
-    const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    const roomId = payload?.roomId;
+    const { roomId } = payload;
     if (!roomId) return client.emit('error', 'Room ID required');
 
     const sockets = await this.server.in(roomId).fetchSockets();
@@ -105,19 +110,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ---------- CREATE ROOM ----------
   @SubscribeMessage('createRoom')
   async handleCreateRoom(
-    @MessageBody() raw: any,
+    @MessageBody() payload: CreateRoomDto,
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
-    const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const { name, isGroup } = payload;
 
-    if (!payload?.name) {
+    if (!name) {
       return client.emit('error', 'Room name required');
     }
 
-    const room = await this.chatService.createRoom(
-      payload.name,
-      payload.isGroup ?? false,
-    );
+    const room = await this.chatService.createRoom(name, isGroup ?? false);
 
     client.join(room.id);
 
@@ -132,12 +134,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ---------- JOIN ROOM ----------
   @SubscribeMessage('joinRoom')
   async handleJoinRoom(
-    @MessageBody() raw: any,
+    @MessageBody() payload: JoinRoomDto,
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
-    const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
-
-    const roomId = payload?.roomId;
+    const { roomId } = payload;
 
     if (!roomId) {
       return client.emit('error', 'Room ID required');
@@ -146,15 +146,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const room = await this.chatService.findRoomById(roomId);
     if (!room) {
       return client.emit('error', 'Room does not exist');
-    }
-
-    const canJoin = await this.chatService.canUserJoinRoom(
-      client.data.user.id,
-      roomId,
-    );
-
-    if (!canJoin) {
-      return client.emit('error', 'Access denied');
     }
 
     client.join(roomId);
@@ -175,11 +166,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('sendMessage')
   async handleMessage(
     @ConnectedSocket() client: AuthenticatedSocket,
-    @MessageBody() raw: any,
+    @MessageBody() payload: SendMessageDto,
   ) {
-    const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
-
-    const { roomId, content } = payload || {};
+    const { roomId, content } = payload;
 
     if (!roomId || !content) {
       console.error('Invalid message payload:', payload);
@@ -209,12 +198,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('leaveRoom')
   handleLeaveRoom(
-    @MessageBody() raw: any,
+    @MessageBody() payload: JoinRoomDto,
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
-    const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
-    const roomId = payload?.roomId;
-
+    const { roomId } = payload;
     if (!roomId) {
       return client.emit('error', 'Room ID required');
     }
@@ -229,10 +216,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('typing')
   handleTyping(
-    @MessageBody() raw: any,
+    @MessageBody() payload: TypingDto,
     @ConnectedSocket() client: AuthenticatedSocket,
   ) {
-    const payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
     const { roomId, isTyping } = payload || {};
     if (!roomId) return client.emit('error', 'Room ID required');
 
