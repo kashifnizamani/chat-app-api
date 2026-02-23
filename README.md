@@ -1,98 +1,239 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Chat App Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A real-time chat application backend built with NestJS, WebSockets, and PostgreSQL. This project provides a complete API for user authentication, chat room management, and real-time messaging capabilities.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **User Authentication**: JWT-based authentication with bcrypt password hashing
+- **Real-time Messaging**: WebSocket support via Socket.io for instant message delivery
+- **Chat Rooms**: Create and manage individual and group chat rooms
+- **User Management**: User registration and profile management
+- **API Documentation**: Swagger/OpenAPI documentation integrated
+- **Database ORM**: Prisma for type-safe database operations
+- **CORS Enabled**: Cross-origin resource sharing configured
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Tech Stack
 
-## Project setup
+- **Framework**: NestJS 11
+- **Runtime**: Node.js
+- **Database**: PostgreSQL
+- **ORM**: Prisma 7
+- **Real-time**: Socket.io with WebSockets
+- **Authentication**: JWT & Passport
+- **Password Hashing**: bcrypt
+- **API Docs**: Swagger/OpenAPI
+- **Language**: TypeScript
+- **Testing**: Jest
 
+## Project Structure
+
+```
+src/
+├── auth/                    # Authentication module
+│   ├── auth.controller.ts   # Auth endpoints
+│   ├── auth.service.ts      # Auth logic
+│   ├── auth.guard.ts        # JWT guard
+│   ├── decorators/          # Custom decorators
+│   └── dto/                 # Data transfer objects
+├── chat/                    # WebSocket chat module
+│   ├── chat.gateway.ts      # Socket.io gateway
+│   ├── chat.service.ts      # Chat business logic
+│   ├── chat.types.ts        # Type definitions
+│   └── dto/                 # Chat DTOs
+├── users/                   # User management module
+│   ├── users.service.ts     # User operations
+│   └── users.module.ts      # Module config
+├── prisma/                  # Prisma service
+│   └── prisma.service.ts    # Database service
+├── types/                   # Global types
+├── app.module.ts            # Root module
+├── app.controller.ts        # Root controller
+├── app.service.ts           # Root service
+└── main.ts                  # Application entry point
+
+prisma/
+├── schema.prisma            # Database schema
+└── migrations/              # Database migrations
+
+test/
+├── app.e2e-spec.ts         # E2E tests
+└── jest-e2e.json           # Jest config for E2E
+```
+
+## Database Schema
+
+### User
+- `id`: Unique identifier (UUID)
+- `username`: User's display name
+- `email`: Unique email address
+- `password`: Hashed password
+- `createdAt`: Account creation timestamp
+- `messages`: Relationship to messages sent by user
+
+### Room
+- `id`: Unique identifier (UUID)
+- `name`: Room/conversation name (optional)
+- `isGroup`: Boolean flag for group chats
+- `createdAt`: Room creation timestamp
+- `messages`: Relationship to room messages
+
+### Message
+- `id`: Unique identifier (UUID)
+- `content`: Message text
+- `createdAt`: Message timestamp
+- `senderId`: Reference to sending user
+- `roomId`: Reference to chat room
+- `sender`: Relationship to user
+- `room`: Relationship to room
+
+## Prerequisites
+
+- Node.js 18+
+- npm or yarn
+- PostgreSQL 12+
+
+## Installation
+
+1. **Clone the repository**
 ```bash
-$ npm install
+git clone <repository-url>
+cd chat-app-backend
+```
+
+2. **Install dependencies**
+```bash
+npm install
+```
+
+3. **Set up environment variables**
+Create a `.env` file in the root directory:
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/chat_app
+JWT_SECRET=your_jwt_secret_key
+JWT_EXPIRATION=3600
+NODE_ENV=development
+```
+
+4. **Set up the database**
+```bash
+# Run Prisma migrations
+npx prisma migrate dev --name init
+
+# (Optional) Seed the database
+npx prisma db seed
+```
+
+5. **Generate Prisma client**
+```bash
+npx prisma generate
 ```
 
 ## Compile and run the project
 
 ```bash
 # development
-$ npm run start
+npm run start
 
 # watch mode
-$ npm run start:dev
+npm run start:dev
+
+# debug mode
+npm run start:debug
 
 # production mode
-$ npm run start:prod
+npm run start:prod
 ```
 
-## Run tests
+## API Documentation
 
+Once the application is running, access the Swagger documentation at:
+```
+http://localhost:3000/api/docs
+```
+
+### Key Endpoints
+
+#### Authentication
+- `POST /auth/register` - Register a new user
+- `POST /auth/login` - Login user
+
+#### Chat (WebSocket)
+- `@SubscribeMessage('sendMessage')` - Send a message to a room
+- `@SubscribeMessage('joinRoom')` - Join a chat room
+- `@SubscribeMessage('leaveRoom')` - Leave a chat room
+
+## Code Quality
+
+### Lint code
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run lint
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+### Format code
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run format
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Database Migrations
 
-## Resources
+### Create a new migration
+```bash
+npx prisma migrate dev --name your_migration_name
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+### Apply migrations
+```bash
+npx prisma migrate deploy
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### View database in Prisma Studio
+```bash
+npx prisma studio
+```
 
-## Support
+## Environment Variables
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | Required |
+| `JWT_SECRET` | Secret key for JWT signing | Required |
+| `JWT_EXPIRATION` | JWT token expiration time in seconds | 3600 |
+| `NODE_ENV` | Environment (development/production) | development |
 
-## Stay in touch
+## Project Commands Summary
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+| Command | Description |
+|---------|-------------|
+| `npm run start` | Start the application |
+| `npm run start:dev` | Start in watch mode |
+| `npm run start:debug` | Start with debugger |
+| `npm run start:prod` | Start production build |
+| `npm run build` | Build the application |
+| `npm run test` | Run tests |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run test:cov` | Generate coverage report |
+| `npm run test:e2e` | Run E2E tests |
+| `npm run lint` | Run ESLint |
+| `npm run format` | Format code with Prettier |
 
-## License
+## Architecture
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+This project follows NestJS best practices with a modular architecture:
+
+- **Modules**: Each feature (auth, chat, users) is encapsulated in its own module
+- **Services**: Business logic is separated into service classes
+- **Controllers/Gateways**: Handle HTTP requests and WebSocket connections
+- **Guards**: JWT authentication guard protects routes
+- **DTOs**: Data validation and type safety with class-validator
+- **Prisma**: Centralized database access through PrismaService
+
+## Security Considerations
+
+- Passwords are hashed using bcrypt
+- JWT tokens are used for stateless authentication
+- CORS is enabled for cross-origin requests
+- Environment variables store sensitive information
+- Input validation using class-validator
+
+
+
