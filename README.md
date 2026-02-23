@@ -148,7 +148,7 @@ npm run start:prod
 
 Once the application is running, access the Swagger documentation at:
 ```
-http://localhost:3000/api/docs
+http://localhost:3000/swagger/json
 ```
 
 ### Key Endpoints
